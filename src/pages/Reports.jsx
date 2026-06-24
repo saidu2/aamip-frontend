@@ -1,0 +1,378 @@
+import { useState, useEffect } from 'react'
+import PageWrapper from '../components/layout/PageWrapper'
+import Card from '../components/common/Card'
+import Button from '../components/common/Button'
+import Modal from '../components/common/Modal'
+import { FileText, Download, Plus, Sparkles, RefreshCw, BarChart3, PieChart, ShieldAlert, TrendingUp } from 'lucide-react'
+import { portfoliosAPI, stocksAPI, aiAPI } from '../utils/api'
+import { formatDate, formatDateTime } from '../utils/helpers'
+import toast from 'react-hot-toast'
+
+const REPORT_TYPES = [
+  { key: 'portfolio_summary',  label: 'Portfolio Summary',   icon: PieChart,    description: 'Full portfolio performance, holdings and P&L breakdown' },
+  { key: 'investment_memo',    label: 'Investment Memo',     icon: FileText,    description: 'AI-powered stock research memo for a specific company' },
+  { key: 'market_outlook',     label: 'Market Outlook',      icon: TrendingUp,  description: 'NGX market commentary and sector analysis' },
+  { key: 'risk_report',        label: 'Risk Report',         icon: ShieldAlert, description: 'Portfolio risk metrics and concentration analysis' },
+  { key: 'executive_summary',  label: 'Executive Summary',   icon: BarChart3,   description: 'High-level summary for management and board review' },
+]
+
+export default function Reports() {
+  const [portfolios, setPortfolios]     = useState([])
+  const [stocks, setStocks]             = useState([])
+  const [reports, setReports]           = useState([])
+  const [generateOpen, setGenerateOpen] = useState(false)
+  const [viewOpen, setViewOpen]         = useState(false)
+  const [selectedReport, setSelectedReport] = useState(null)
+  const [generating, setGenerating]     = useState(false)
+
+  // Form state
+  const [reportType, setReportType]       = useState('portfolio_summary')
+  const [selectedPortfolio, setSelectedPortfolio] = useState('')
+  const [selectedStock, setSelectedStock] = useState('')
+  const [generatedContent, setGeneratedContent] = useState('')
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [pRes, sRes] = await Promise.allSettled([portfoliosAPI.list(), stocksAPI.list()])
+        if (pRes.status === 'fulfilled') setPortfolios(pRes.value.data)
+        if (sRes.status === 'fulfilled') setStocks(sRes.value.data)
+      } catch {}
+    }
+    load()
+    // Load saved reports from localStorage
+    const saved = localStorage.getItem('aamip_reports')
+    if (saved) setReports(JSON.parse(saved))
+  }, [])
+
+  const saveReport = (report) => {
+    const updated = [report, ...reports]
+    setReports(updated)
+    localStorage.setItem('aamip_reports', JSON.stringify(updated))
+  }
+
+  const generateReport = async () => {
+    if (reportType === 'portfolio_summary' && !selectedPortfolio) {
+      toast.error('Please select a portfolio'); return
+    }
+    if (reportType === 'investment_memo' && !selectedStock) {
+      toast.error('Please select a stock'); return
+    }
+
+    setGenerating(true)
+    setGeneratedContent('')
+
+    try {
+      let content = ''
+      const now = new Date()
+
+      if (reportType === 'portfolio_summary' || reportType === 'risk_report' || reportType === 'executive_summary') {
+        const portfolio = portfolios.find(p => p.id === parseInt(selectedPortfolio))
+        const hRes      = await portfoliosAPI.getHoldings(parseInt(selectedPortfolio))
+        const holdings  = hRes.data
+        const totalValue = holdings.reduce((s, h) => s + (h.current_value || 0), 0)
+        const totalCost  = holdings.reduce((s, h) => s + (h.cost_value   || 0), 0)
+        const totalPnL   = totalValue - totalCost
+        const pnlPct     = totalCost ? ((totalPnL / totalCost) * 100).toFixed(2) : 0
+
+        const res = await aiAPI.analyzePortfolio(parseInt(selectedPortfolio), {
+          ytd: pnlPct, sharpe: '—', volatility: '—', max_drawdown: '—'
+        })
+        const aiAnalysis = res.data.analysis
+
+        const fmt = (n) => Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })
+
+        content = `${REPORT_TYPES.find(r => r.key === reportType)?.label?.toUpperCase()}
+${'='.repeat(60)}
+Portfolio: ${portfolio?.name}
+Currency:  ${portfolio?.currency}
+Date:      ${formatDate(now.toISOString())}
+Generated: ${formatDateTime(now.toISOString())}
+
+FINANCIAL SUMMARY
+${'─'.repeat(40)}
+Total Value:   ₦${fmt(totalValue)}
+Total Cost:    ₦${fmt(totalCost)}
+Total P&L:     ₦${fmt(totalPnL)} (${pnlPct >= 0 ? '+' : ''}${pnlPct}%)
+Holdings:      ${holdings.length} positions
+
+HOLDINGS BREAKDOWN
+${'─'.repeat(40)}
+${holdings.map(h =>
+  `${h.ticker.padEnd(12)} Qty: ${Number(h.quantity).toLocaleString().padEnd(12)} Cost: ₦${fmt(h.cost_price).padEnd(12)} Value: ₦${fmt(h.current_value).padEnd(14)} P&L: ${h.pnl >= 0 ? '+' : ''}₦${fmt(h.pnl)} (${h.pnl_pct}%) | Weight: ${h.weight}%`
+).join('\n')}
+
+AI ANALYSIS
+${'─'.repeat(40)}
+${aiAnalysis}
+
+${'─'.repeat(60)}
+Generated by AAMIP — Asset Management Intelligence Platform
+Prime Capital & Investment Ltd | SEC Nigeria Regulated
+`
+      } else if (reportType === 'investment_memo') {
+        const stock = stocks.find(s => s.ticker === selectedStock)
+        const res   = await aiAPI.analyzeStock(selectedStock)
+        const aiAnalysis = res.data.analysis
+
+        content = `INVESTMENT MEMORANDUM
+${'='.repeat(60)}
+Company:  ${stock?.name}
+Ticker:   ${stock?.ticker}
+Sector:   ${stock?.sector || '—'}
+Date:     ${formatDate(now.toISOString())}
+
+${aiAnalysis}
+
+${'─'.repeat(60)}
+Generated by AAMIP — Asset Management Intelligence Platform
+Prime Capital & Investment Ltd | SEC Nigeria Regulated
+`
+      } else if (reportType === 'market_outlook') {
+        content = `MARKET OUTLOOK REPORT
+${'='.repeat(60)}
+Date: ${formatDate(now.toISOString())}
+
+This report requires current NGX market data.
+Please ensure market prices are up to date via the
+Market Intelligence page before generating this report.
+
+Connect Gemini API key to generate AI-powered market
+commentary automatically.
+
+${'─'.repeat(60)}
+Generated by AAMIP — Asset Management Intelligence Platform
+`
+      }
+
+      setGeneratedContent(content)
+      const report = {
+        id:        Date.now(),
+        title:     buildTitle(reportType, portfolios, stocks, selectedPortfolio, selectedStock),
+        type:      REPORT_TYPES.find(r => r.key === reportType)?.label,
+        content,
+        created_at: now.toISOString(),
+        status:    'Final',
+      }
+      saveReport(report)
+      toast.success('Report generated successfully')
+
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to generate report. Check Gemini API key.'
+      toast.error(msg)
+      setGeneratedContent(`Report generation failed: ${msg}\n\nPlease ensure your Gemini API key is configured and try again.`)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const buildTitle = (type, portfolios, stocks, portfolioId, stockTicker) => {
+    const p = portfolios.find(p => p.id === parseInt(portfolioId))
+    const s = stocks.find(s => s.ticker === stockTicker)
+    const d = new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+    const map = {
+      portfolio_summary: `${p?.name || 'Portfolio'} — Summary Report (${d})`,
+      investment_memo:   `${s?.name || stockTicker} — Investment Memo (${d})`,
+      market_outlook:    `NGX Market Outlook — ${d}`,
+      risk_report:       `${p?.name || 'Portfolio'} — Risk Report (${d})`,
+      executive_summary: `${p?.name || 'Portfolio'} — Executive Summary (${d})`,
+    }
+    return map[type] || `Report — ${d}`
+  }
+
+  const downloadReport = (report) => {
+    const blob = new Blob([report.content], { type: 'text/plain' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `${report.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Report downloaded')
+  }
+
+  const viewReport = (report) => {
+    setSelectedReport(report)
+    setViewOpen(true)
+  }
+
+  const needsPortfolio = ['portfolio_summary', 'risk_report', 'executive_summary'].includes(reportType)
+  const needsStock     = reportType === 'investment_memo'
+
+  return (
+    <>
+      {/* View Report Modal */}
+      <Modal open={viewOpen} onClose={() => setViewOpen(false)}
+        title={selectedReport?.title} size="lg"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setViewOpen(false)}>Close</Button>
+            <Button variant="primary"   size="sm" onClick={() => downloadReport(selectedReport)}><Download size={13} /> Download</Button>
+          </>
+        }
+      >
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: 16, maxHeight: 500, overflowY: 'auto' }}>
+          <pre style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+            {selectedReport?.content}
+          </pre>
+        </div>
+      </Modal>
+
+      {/* Generate Report Modal */}
+      <Modal open={generateOpen} onClose={() => { setGenerateOpen(false); setGeneratedContent('') }}
+        title="Generate Report" size="lg"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => { setGenerateOpen(false); setGeneratedContent('') }}>Close</Button>
+            {!generatedContent && (
+              <Button variant="primary" size="sm" loading={generating} onClick={generateReport}>
+                <Sparkles size={13} /> Generate Report
+              </Button>
+            )}
+            {generatedContent && (
+              <Button variant="primary" size="sm" onClick={() => downloadReport(reports[0])}>
+                <Download size={13} /> Download Report
+              </Button>
+            )}
+          </>
+        }
+      >
+        {!generatedContent ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Report type selector */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Report Type</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {REPORT_TYPES.map(rt => {
+                  const Icon = rt.icon
+                  return (
+                    <div key={rt.key} onClick={() => setReportType(rt.key)}
+                      style={{ padding: '10px 12px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10,
+                        border: `1px solid ${reportType === rt.key ? 'var(--gold-primary)' : 'var(--border-subtle)'}`,
+                        background: reportType === rt.key ? 'var(--gold-subtle)' : 'var(--bg-secondary)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <Icon size={14} style={{ color: reportType === rt.key ? 'var(--gold-primary)' : 'var(--text-muted)', marginTop: 1, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: reportType === rt.key ? 'var(--gold-light)' : 'var(--text-primary)', marginBottom: 2 }}>{rt.label}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{rt.description}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Portfolio selector */}
+            {needsPortfolio && (
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Select Portfolio *</label>
+                <select value={selectedPortfolio} onChange={e => setSelectedPortfolio(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-default)', borderRadius: 6, color: selectedPortfolio ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', outline: 'none' }}>
+                  <option value="">— Select a portfolio —</option>
+                  {portfolios.map(p => <option key={p.id} value={p.id}>{p.name} ({p.currency})</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Stock selector */}
+            {needsStock && (
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Select Stock *</label>
+                <select value={selectedStock} onChange={e => setSelectedStock(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-default)', borderRadius: 6, color: selectedStock ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: 13, fontFamily: 'DM Sans, sans-serif', outline: 'none' }}>
+                  <option value="">— Select a stock —</option>
+                  {stocks.map(s => <option key={s.ticker} value={s.ticker}>{s.ticker} — {s.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+              <strong style={{ color: 'var(--text-secondary)' }}>Note:</strong> Report generation uses the Gemini AI API. Make sure your API key is configured in Settings.
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: 16, maxHeight: 400, overflowY: 'auto' }}>
+            <pre style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+              {generatedContent}
+            </pre>
+          </div>
+        )}
+      </Modal>
+
+      <PageWrapper title="Reports"
+        actions={
+          <>
+            <Button variant="primary" size="sm" onClick={() => { setGenerateOpen(true); setGeneratedContent('') }}>
+              <Plus size={13} /> Generate Report
+            </Button>
+          </>
+        }
+      >
+        {/* Report type cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
+          {REPORT_TYPES.map(rt => {
+            const Icon = rt.icon
+            return (
+              <div key={rt.key}
+                onClick={() => { setReportType(rt.key); setGeneratedContent(''); setGenerateOpen(true) }}
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--gold-primary)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+              >
+                <Icon size={20} style={{ color: 'var(--gold-primary)', marginBottom: 8 }} />
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{rt.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{rt.description}</div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Generated reports list */}
+        <Card title="Generated Reports" subtitle={`${reports.length} reports`}>
+          {reports.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center' }}>
+              <FileText size={28} style={{ color: 'var(--text-muted)', margin: '0 auto 12px', display: 'block' }} />
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>No reports generated yet</p>
+              <Button variant="primary" size="sm" onClick={() => setGenerateOpen(true)}><Plus size={13} /> Generate First Report</Button>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Report Title</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th style={{ textAlign: 'center' }}>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileText size={13} style={{ color: 'var(--gold-primary)', flexShrink: 0 }} />
+                        {r.title}
+                      </div>
+                    </td>
+                    <td><span className="badge badge-muted">{r.type}</span></td>
+                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(r.created_at)}</td>
+                    <td style={{ textAlign: 'center' }}><span className="badge badge-success">{r.status}</span></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Button size="sm" variant="ghost" onClick={() => viewReport(r)}>View</Button>
+                        <Button size="sm" variant="ghost" onClick={() => downloadReport(r)}><Download size={12} /></Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      </PageWrapper>
+    </>
+  )
+}

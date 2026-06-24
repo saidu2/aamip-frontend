@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Backgrounds */
+  --bg-base:        #050810;
+  --bg-primary:     #0A0E1A;
+  --bg-secondary:   #0F1628;
+  --bg-surface:     #141E35;
+  --bg-elevated:    #1A2640;
+  --bg-hover:       #1E2D4A;
+
+  /* Borders */
+  --border-subtle:  #1E2A40;
+  --border-default: #2A3A55;
+  --border-strong:  #3A4E6A;
+
+  /* Gold Accent */
+  --gold-primary:   #C9A84C;
+  --gold-light:     #E8C97A;
+  --gold-dim:       #A8862E;
+  --gold-subtle:    rgba(201, 168, 76, 0.12);
+  --gold-glow:      rgba(201, 168, 76, 0.25);
+
+  /* Text */
+  --text-primary:   #F0F4FF;
+  --text-secondary: #8A9BC0;
+  --text-muted:     #5A6A88;
+  --text-disabled:  #3A4A60;
+
+  /* Status */
+  --success:        #2ECC71;
+  --success-bg:     rgba(46, 204, 113, 0.1);
+  --danger:         #E74C3C;
+  --danger-bg:      rgba(231, 76, 60, 0.1);
+  --warning:        #F39C12;
+  --warning-bg:     rgba(243, 156, 18, 0.1);
+  --info:           #3498DB;
+  --info-bg:        rgba(52, 152, 219, 0.1);
+
+  /* Sidebar */
+  --sidebar-width:  260px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+/* Selection */
+::selection { background: var(--gold-subtle); color: var(--gold-light); }
+
+/* Gold divider utility */
+.gold-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-primary), transparent);
+  opacity: 0.4;
+}
+
+/* Card base */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}
+
+/* Stat card accent */
+.stat-card-gold {
+  border-left: 3px solid var(--gold-primary);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.badge-success { background: var(--success-bg); color: var(--success); }
+.badge-danger  { background: var(--danger-bg);  color: var(--danger);  }
+.badge-warning { background: var(--warning-bg); color: var(--warning); }
+.badge-info    { background: var(--info-bg);    color: var(--info);    }
+.badge-gold    { background: var(--gold-subtle); color: var(--gold-light); }
+.badge-muted   { background: var(--bg-hover);   color: var(--text-secondary); }
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in { animation: fadeIn 0.35s ease forwards; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Focus */
+*:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+}
