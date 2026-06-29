@@ -1,53 +1,52 @@
 import { useEffect, useRef, memo } from 'react'
 
-/**
- * TradingView Chart Widget
- * Free embeddable chart — works for NGX stocks using format "NGX:TICKER"
- * No API key required.
- */
-function TradingViewWidget({ symbol = 'NGX:GTCO', height = 400, theme = 'dark' }) {
+function TradingViewWidget({ symbol = 'NGX:GTCO', height = 420 }) {
   const containerRef = useRef()
 
   useEffect(() => {
     if (!containerRef.current) return
-
-    // Clear previous widget
     containerRef.current.innerHTML = ''
+
+    const wrapper = document.createElement('div')
+    wrapper.className = 'tradingview-widget-container'
+    wrapper.style.height = '100%'
+    wrapper.style.width = '100%'
+
+    const inner = document.createElement('div')
+    inner.className = 'tradingview-widget-container__widget'
+    inner.style.height = 'calc(100% - 32px)'
+    inner.style.width = '100%'
+    wrapper.appendChild(inner)
 
     const script = document.createElement('script')
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
-    script.type = 'text/javascript'
     script.async = true
     script.innerHTML = JSON.stringify({
-      autosize:           true,
+      autosize:            true,
       symbol,
-      interval:           'D',
-      timezone:           'Africa/Lagos',
-      theme,
-      style:              '1',
-      locale:             'en',
-      backgroundColor:    theme === 'dark' ? '#0F1628' : '#ffffff',
-      gridColor:          theme === 'dark' ? 'rgba(42,58,85,0.4)' : 'rgba(200,200,200,0.4)',
-      withdateranges:     true,
-      range:              '3M',
-      hide_side_toolbar:  false,
-      allow_symbol_change:true,
-      save_image:         false,
-      calendar:           false,
-      support_host:       'https://www.tradingview.com',
+      interval:            'D',
+      timezone:            'Africa/Lagos',
+      theme:               'dark',
+      style:               '1',
+      locale:              'en',
+      backgroundColor:     '#0F1628',
+      gridColor:           'rgba(42,58,85,0.4)',
+      withdateranges:      true,
+      range:               '3M',
+      hide_side_toolbar:   false,
+      allow_symbol_change: true,
+      save_image:          false,
+      calendar:            false,
+      support_host:        'https://www.tradingview.com',
     })
+    wrapper.appendChild(script)
+    containerRef.current.appendChild(wrapper)
 
-    containerRef.current.appendChild(script)
-
-    return () => {
-      if (containerRef.current) containerRef.current.innerHTML = ''
-    }
-  }, [symbol, theme, height])
+    return () => { if (containerRef.current) containerRef.current.innerHTML = '' }
+  }, [symbol])
 
   return (
-    <div style={{ height, width: '100%', position: 'relative', overflow: 'hidden', borderRadius: 6 }}>
-      <div className="tradingview-widget-container" ref={containerRef} style={{ height: '100%', width: '100%' }} />
-    </div>
+    <div ref={containerRef} style={{ height, width: '100%', borderRadius: 6, overflow: 'hidden' }} />
   )
 }
 
