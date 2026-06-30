@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/layout/Sidebar'
@@ -34,20 +34,24 @@ function ProtectedRoute({ children }) {
 }
 
 function MobileMenuButton() {
-  const { toggleSidebar } = useApp()
+  const { toggleSidebar, sidebarOpen } = useApp()
+  // Hide button when sidebar is already open on mobile (avoid overlap with X close button)
   return (
     <button
       onClick={toggleSidebar}
-      style={{
-        position: 'fixed', bottom: 20, right: 20, zIndex: 100,
-        width: 48, height: 48, borderRadius: '50%',
-        background: 'var(--gold-primary)', border: 'none',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', boxShadow: '0 4px 12px rgba(201,168,76,0.4)',
-      }}
       className="mobile-menu-btn"
+      style={{
+        position: 'fixed', bottom: 20, right: 20, zIndex: 80,
+        width: 50, height: 50, borderRadius: '50%',
+        background: 'var(--gold-primary)', border: 'none',
+        alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', boxShadow: '0 4px 16px rgba(201,168,76,0.5)',
+        opacity: sidebarOpen ? 0 : 1,
+        pointerEvents: sidebarOpen ? 'none' : 'auto',
+        transition: 'opacity 0.2s',
+      }}
     >
-      <Menu size={20} color="#0A0E1A" />
+      <Menu size={22} color="#0A0E1A" strokeWidth={2.5} />
     </button>
   )
 }

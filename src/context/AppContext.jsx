@@ -3,8 +3,13 @@ import { createContext, useContext, useState, useCallback } from 'react'
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [theme, setTheme]             = useState('dark') // 'dark' | 'light' — Phase 2
+  const getInitial = () => {
+    if (typeof window === 'undefined') return true
+    return window.innerWidth >= 768
+  }
+
+  const [sidebarOpen, setSidebarOpen] = useState(getInitial)
+  const [theme, setTheme] = useState('dark')
 
   const toggleSidebar = useCallback(() => setSidebarOpen(p => !p), [])
 
