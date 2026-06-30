@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import { AppProvider } from './context/AppContext'
+import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/layout/Sidebar'
+import { Menu } from 'lucide-react'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import MarketIntelligence from './pages/MarketIntelligence'
@@ -13,9 +14,8 @@ import ResearchRepository from './pages/ResearchRepository'
 import Compliance from './pages/Compliance'
 import Settings from './pages/Settings'
 
-function ProtectedRoute({ children, roles }) {
+function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-base)' }}>
@@ -29,31 +29,49 @@ function ProtectedRoute({ children, roles }) {
       </div>
     )
   }
-
   if (!user) return <Navigate to="/login" replace />
-  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
   return children
+}
+
+function MobileMenuButton() {
+  const { toggleSidebar } = useApp()
+  return (
+    <button
+      onClick={toggleSidebar}
+      style={{
+        position: 'fixed', bottom: 20, right: 20, zIndex: 100,
+        width: 48, height: 48, borderRadius: '50%',
+        background: 'var(--gold-primary)', border: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', boxShadow: '0 4px 12px rgba(201,168,76,0.4)',
+      }}
+      className="mobile-menu-btn"
+    >
+      <Menu size={20} color="#0A0E1A" />
+    </button>
+  )
 }
 
 function AppLayout() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard"   element={<Dashboard />} />
-          <Route path="/market"      element={<MarketIntelligence />} />
-          <Route path="/research"    element={<StockResearch />} />
-          <Route path="/portfolio"   element={<Portfolio />} />
-          <Route path="/risk"        element={<RiskManagement />} />
-          <Route path="/reports"     element={<Reports />} />
-          <Route path="/repository"  element={<ResearchRepository />} />
-          <Route path="/compliance"  element={<Compliance roles={['admin', 'compliance']} />} />
-          <Route path="/settings"    element={<Settings />} />
-          <Route path="*"            element={<Navigate to="/dashboard" replace />} />
+          <Route path="/"           element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard"  element={<Dashboard />} />
+          <Route path="/market"     element={<MarketIntelligence />} />
+          <Route path="/research"   element={<StockResearch />} />
+          <Route path="/portfolio"  element={<Portfolio />} />
+          <Route path="/risk"       element={<RiskManagement />} />
+          <Route path="/reports"    element={<Reports />} />
+          <Route path="/repository" element={<ResearchRepository />} />
+          <Route path="/compliance" element={<Compliance />} />
+          <Route path="/settings"   element={<Settings />} />
+          <Route path="*"           element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </div>
+      <MobileMenuButton />
     </div>
   )
 }
