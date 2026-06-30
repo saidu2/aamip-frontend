@@ -180,3 +180,9 @@ input, select, textarea, button {
 
 * { max-width: 100%; box-sizing: border-box; }
 body { overflow-x: hidden; }
+
+/* TradingView widget — prevent white flash before iframe loads */
+.tradingview-widget-container,
+.tradingview-widget-container iframe {
+  background: #0F1628 !important;
+}

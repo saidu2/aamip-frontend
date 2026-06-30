@@ -3,7 +3,6 @@ import PageWrapper from '../components/layout/PageWrapper'
 import Card, { StatCard } from '../components/common/Card'
 import Button from '../components/common/Button'
 import CSVUploadModal from '../components/common/CSVUploadModal'
-import TradingViewTicker from '../components/charts/TradingViewTicker'
 import TradingViewWidget from '../components/charts/TradingViewWidget'
 import { Upload, RefreshCw, TrendingUp, Zap } from 'lucide-react'
 import { marketAPI, stocksAPI } from '../utils/api'
@@ -27,8 +26,7 @@ const NGX_STOCKS = [
 ]
 
 const isLocalhost = typeof window !== 'undefined' && (
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1'
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 )
 
 export default function MarketIntelligence() {
@@ -44,6 +42,7 @@ export default function MarketIntelligence() {
   const [chartSymbol, setChartSymbol]     = useState('NGX:GTCO')
   const [selectedTicker, setSelectedTicker] = useState(null)
   const [priceHistory, setPriceHistory]   = useState([])
+  const [useTradingView, setUseTradingView] = useState(!isLocalhost)
 
   const loadData = async () => {
     setLoading(true)
@@ -69,13 +68,11 @@ export default function MarketIntelligence() {
   const loadPriceHistory = async (ticker) => {
     setSelectedTicker(ticker)
     setChartSymbol('NGX:' + ticker)
-    if (isLocalhost) {
-      try {
-        const res = await stocksAPI.getPrices(ticker, 30)
-        const sorted = [...res.data].reverse()
-        setPriceHistory(sorted.map(p => ({ date: p.date ? p.date.slice(5) : '', price: p.close_price })))
-      } catch { setPriceHistory([]) }
-    }
+    try {
+      const res = await stocksAPI.getPrices(ticker, 30)
+      const sorted = [...res.data].reverse()
+      setPriceHistory(sorted.map(p => ({ date: p.date ? p.date.slice(5) : '', price: p.close_price })))
+    } catch { setPriceHistory([]) }
   }
 
   useEffect(() => { loadData() }, [])
@@ -129,9 +126,6 @@ export default function MarketIntelligence() {
           </>
         }
       >
-        {/* TradingView Ticker — shows on live site, hidden on localhost */}
-        {!isLocalhost && <TradingViewTicker />}
-
         {/* Scraper status */}
         {scraperStatus && (
           <div style={{
@@ -142,8 +136,8 @@ export default function MarketIntelligence() {
           }}>
             <span style={{ fontSize: 12, color: scraperStatus.is_current ? 'var(--success)' : 'var(--warning)' }}>
               {scraperStatus.is_current
-                ? '✓ Market data current — updated today (' + scraperStatus.total_price_records + ' price records)'
-                : '⚠ Last update: ' + (scraperStatus.last_price_date || 'never') + ' — upload real NGX prices CSV for accurate data'}
+                ? '✓ Database prices current — updated today (' + scraperStatus.total_price_records + ' records)'
+                : '⚠ Database last updated: ' + (scraperStatus.last_price_date || 'never') + ' — upload real NGX prices CSV'}
             </span>
           </div>
         )}
@@ -157,67 +151,75 @@ export default function MarketIntelligence() {
           </div>
         )}
 
-        {/* Chart — TradingView on live, Recharts on localhost */}
-        {!isLocalhost ? (
-          <Card
-            title="Live NGX Chart"
-            subtitle="Real-time data powered by TradingView — click any stock to view its chart"
-            action={
-              <select value={chartSymbol} onChange={e => setChartSymbol(e.target.value)}
-                style={{ padding: '5px 10px', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 5, color: 'var(--text-primary)', fontSize: 12, fontFamily: 'DM Sans, sans-serif', outline: 'none', cursor: 'pointer' }}>
-                {NGX_STOCKS.map(s => <option key={s.ticker} value={s.ticker}>{s.label}</option>)}
-              </select>
-            }
-            style={{ marginBottom: 24 }}
-          >
+        {/* Chart card with toggle */}
+        <Card
+          title={useTradingView ? 'Live NGX Chart (TradingView)' : 'Price History (Database)'}
+          subtitle={useTradingView ? 'May not show data for all NGX tickers — limited free tier coverage' : '30-day closing prices from your uploaded data'}
+          action={
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {useTradingView && (
+                <select value={chartSymbol} onChange={e => setChartSymbol(e.target.value)}
+                  style={{ padding: '5px 10px', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 5, color: 'var(--text-primary)', fontSize: 12, fontFamily: 'DM Sans, sans-serif', outline: 'none', cursor: 'pointer' }}>
+                  {NGX_STOCKS.map(s => <option key={s.ticker} value={s.ticker}>{s.label}</option>)}
+                </select>
+              )}
+              <button
+                onClick={() => setUseTradingView(p => !p)}
+                style={{ padding: '5px 12px', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 5, color: 'var(--gold-light)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+              >
+                {useTradingView ? '📊 Use Database Chart' : '📈 Use TradingView'}
+              </button>
+            </div>
+          }
+          style={{ marginBottom: 24 }}
+        >
+          {useTradingView ? (
             <TradingViewWidget symbol={chartSymbol} height={420} />
-          </Card>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-            <Card title={selectedTicker ? 'Price History — ' + selectedTicker : 'Price History'} subtitle="30-day from database">
-              {priceHistory.length === 0 ? (
-                <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                  Click a stock below to view chart
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={priceHistory}>
-                    <defs>
-                      <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#C9A84C" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} interval={4} />
-                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => '₦' + v} />
-                    <Tooltip {...tooltipStyle} formatter={v => ['₦' + fmt(v), 'Close Price']} />
-                    <Area type="monotone" dataKey="price" stroke="#C9A84C" strokeWidth={2} fill="url(#priceGrad)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </Card>
-            <Card title="USD/NGN Rate History" subtitle="30-day CBN rate trend">
-              {fxHistory.length === 0 ? (
-                <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No FX data</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={fxHistory}>
-                    <defs>
-                      <linearGradient id="fxGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#3498DB" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#3498DB" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} interval={4} />
-                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip {...tooltipStyle} formatter={v => ['₦' + fmt(v), 'USD/NGN']} />
-                    <Area type="monotone" dataKey="usd" stroke="#3498DB" strokeWidth={2} fill="url(#fxGrad)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </Card>
-          </div>
-        )}
+          ) : (
+            priceHistory.length === 0 ? (
+              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                Click a stock in Top Gainers/Losers below to view its chart
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={priceHistory}>
+                  <defs>
+                    <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#C9A84C" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} interval={4} />
+                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => '₦' + v} />
+                  <Tooltip {...tooltipStyle} formatter={v => ['₦' + fmt(v), selectedTicker + ' Close Price']} />
+                  <Area type="monotone" dataKey="price" stroke="#C9A84C" strokeWidth={2} fill="url(#priceGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )
+          )}
+        </Card>
+
+        {/* USD/NGN history — always Recharts since it's our own data */}
+        <Card title="USD/NGN Rate History" subtitle="30-day CBN exchange rate trend" style={{ marginBottom: 24 }}>
+          {fxHistory.length === 0 ? (
+            <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No FX data — upload FX rates CSV</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={fxHistory}>
+                <defs>
+                  <linearGradient id="fxGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#3498DB" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3498DB" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} interval={4} />
+                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip {...tooltipStyle} formatter={v => ['₦' + fmt(v), 'USD/NGN']} />
+                <Area type="monotone" dataKey="usd" stroke="#3498DB" strokeWidth={2} fill="url(#fxGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
 
         {/* Gainers / Losers */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
@@ -229,7 +231,7 @@ export default function MarketIntelligence() {
                 <thead><tr><th>Ticker</th><th style={{ textAlign: 'right' }}>Price</th><th style={{ textAlign: 'right' }}>Change</th></tr></thead>
                 <tbody>
                   {movers.gainers && movers.gainers.map(s => (
-                    <tr key={s.ticker} style={{ cursor: 'pointer' }} onClick={() => loadPriceHistory(s.ticker)}>
+                    <tr key={s.ticker} style={{ cursor: 'pointer' }} onClick={() => { setUseTradingView(false); loadPriceHistory(s.ticker) }}>
                       <td><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--gold-light)', fontWeight: 600 }}>{s.ticker}</span></td>
                       <td style={{ textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>₦{fmt(s.price)}</td>
                       <td style={{ textAlign: 'right', color: 'var(--success)', fontSize: 12 }}>▲ {s.change}%</td>
@@ -248,7 +250,7 @@ export default function MarketIntelligence() {
                 <thead><tr><th>Ticker</th><th style={{ textAlign: 'right' }}>Price</th><th style={{ textAlign: 'right' }}>Change</th></tr></thead>
                 <tbody>
                   {movers.losers && movers.losers.map(s => (
-                    <tr key={s.ticker} style={{ cursor: 'pointer' }} onClick={() => loadPriceHistory(s.ticker)}>
+                    <tr key={s.ticker} style={{ cursor: 'pointer' }} onClick={() => { setUseTradingView(false); loadPriceHistory(s.ticker) }}>
                       <td><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--gold-light)', fontWeight: 600 }}>{s.ticker}</span></td>
                       <td style={{ textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>₦{fmt(s.price)}</td>
                       <td style={{ textAlign: 'right', color: 'var(--danger)', fontSize: 12 }}>▼ {Math.abs(s.change)}%</td>
@@ -261,7 +263,7 @@ export default function MarketIntelligence() {
         </div>
 
         {/* Macro indicators */}
-        <Card title="Macroeconomic Indicators" subtitle="CBN / NBS — upload CSV to update with real data">
+        <Card title="Macroeconomic Indicators" subtitle="CBN / NBS — upload CSV for real data">
           {macro.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '16px 0', textAlign: 'center' }}>No macro data</p>
           ) : (
