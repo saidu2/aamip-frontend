@@ -4,6 +4,9 @@ import { Eye, EyeOff, BarChart3, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
+const isLocalhost = typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -33,7 +36,6 @@ export default function Login() {
       backgroundImage: 'radial-gradient(ellipse at 20% 50%, rgba(201,168,76,0.04) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(26,38,64,0.8) 0%, transparent 60%)',
     }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{
             width: 52, height: 52, borderRadius: 12,
@@ -52,7 +54,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Card */}
         <div style={{
           background: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
@@ -66,7 +67,6 @@ export default function Login() {
           <div className="gold-divider" style={{ marginBottom: 24 }} />
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Email */}
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Email Address
@@ -90,7 +90,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Password
@@ -140,30 +139,32 @@ export default function Login() {
           </form>
         </div>
 
-        {/* Dev hint — remove when backend is live */}
-        <div style={{ marginTop: 16, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: '12px 16px' }}>
-          <p style={{ fontSize: 11, color: 'var(--gold-primary)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>⚠ Dev Mode — Mock Accounts</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {[
-              ['admin@aamip.com',      'Admin'],
-              ['analyst@aamip.com',    'Analyst'],
-              ['pm@aamip.com',         'Portfolio Manager'],
-              ['compliance@aamip.com', 'Compliance'],
-              ['exec@aamip.com',       'Executive'],
-            ].map(([email, role]) => (
-              <div key={email}
-                onClick={() => setForm({ email, password: 'aamip2025' })}
-                style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '3px 0' }}>
-                <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>{email}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{role}</span>
-              </div>
-            ))}
+        {/* Dev hint — ONLY shown on localhost, hidden on production */}
+        {isLocalhost && (
+          <div style={{ marginTop: 16, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: '12px 16px' }}>
+            <p style={{ fontSize: 11, color: 'var(--gold-primary)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>⚠ Dev Mode — Mock Accounts (localhost only)</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {[
+                ['admin@aamip.com',      'Admin'],
+                ['analyst@aamip.com',    'Analyst'],
+                ['pm@aamip.com',         'Portfolio Manager'],
+                ['compliance@aamip.com', 'Compliance'],
+                ['exec@aamip.com',       'Executive'],
+              ].map(([email, role]) => (
+                <div key={email}
+                  onClick={() => setForm({ email, password: 'aamip2025' })}
+                  style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '3px 0' }}>
+                  <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>{email}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{role}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>
+              Password: <span style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>aamip2025</span>
+              {' '}· Click any email to autofill
+            </p>
           </div>
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>
-            Password: <span style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>aamip2025</span>
-            {' '}· Click any email to autofill
-          </p>
-        </div>
+        )}
 
         <p style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: 'var(--text-muted)' }}>
           Regulated by the Securities and Exchange Commission, Nigeria
